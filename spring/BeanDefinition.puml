@@ -1,0 +1,24 @@
+@startuml
+
+
+interface BeanDefinition
+interface AnnotatedBeanDefinition
+abstract class AbstractBeanDefinition
+class RootBeanDefinition
+class ChildBeanDefinition
+class GenericBeanDefinition
+class AnnotatedGenericBeanDefinition
+class ScannedGenericBeanDefinition
+
+BeanDefinition <|-- AbstractBeanDefinition
+BeanDefinition <|-- AnnotatedBeanDefinition
+AbstractBeanDefinition <|-- RootBeanDefinition
+AbstractBeanDefinition <|-- ChildBeanDefinition
+AbstractBeanDefinition <|-- GenericBeanDefinition
+AnnotatedBeanDefinition <|-- AnnotatedGenericBeanDefinition
+AnnotatedBeanDefinition <|-- ScannedGenericBeanDefinition
+GenericBeanDefinition <|-- AnnotatedGenericBeanDefinition
+GenericBeanDefinition <|-- ScannedGenericBeanDefinition
+
+
+@enduml
