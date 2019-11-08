@@ -1,0 +1,40 @@
+@startuml
+
+
+
+abstract class Reference<T> {
+    - T referent
+    ~ volatile ReferenceQueue<? super T> queue
+    ~ volatile Reference next
+    - transient Reference<T> discovered
+    - {static} Lock lock = new Lock()
+    - {static} Reference<Object> pending = null
+
+    ~ {static} boolean tryHandlePending(boolean waitForNotify)
+    + T get()
+    + void clear()
+    + boolean isEnqueued()
+    + boolean enqueue()
+
+    ~ Reference(T referent)
+    ~ Reference(T referent, ReferenceQueue<? super T> queue)
+}
+
+class ReferenceQueue<T> {
+    ~ {static} ReferenceQueue<Object> NULL = new Null<>();
+    ~ {static} ReferenceQueue<Object> ENQUEUED = new Null<>();
+    - Lock lock = new Lock();
+    - volatile Reference<? extends T> head = null;
+    - long queueLength = 0;
+
+    ~ boolean enqueue(Reference<? extends T> r)
+    - Reference<? extends T> reallyPoll()
+    + Reference<? extends T> poll()
+    + Reference<? extends T> remove(long timeout)
+    + Reference<? extends T> remove()
+    ~ void forEach(Consumer<? super Reference<? extends T>> action)
+}
+
+Reference *--> ReferenceQueue
+
+@enduml

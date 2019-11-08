@@ -1,0 +1,19 @@
+@startuml
+scale 350 width
+[*] --> Active: 新建实例
+Active:  垃圾回收器特殊对待
+Active --> pending: 垃圾回收器检测到referent的\n可达性变成某一状态且注册了ReferenceQueue
+Active --> Inactive: 垃圾回收器检测到referent的\n可达性变成某一状态且创建时\n没有注册到ReferenceQueue
+pending --> Enqueued
+pending: pending-Reference中的元素,\n等待被Reference-handler线程入队
+Enqueued --> Inactive: 从队列中删除后
+Enqueued: 实例创建时注册到的队列的中一个元素
+Inactive --> [*]
+Inactive: 终态
+
+note right of Active: 此状态下：\nqueue = 实例注册到的ReferenceQueue\n或ReferenceQueue.NULL(未注册);\nnext = null;
+note left of pending: 此状态下：\nqueue = 实例注册到的ReferenceQueue;\nnext = this;
+note left of Enqueued: 此状态下：\nqueue = ReferenceQueue.ENQUEUED;\nnext = 队列中的下个实例或this(this是队尾)
+note right of Inactive: 此状态下：\nqueue = ReferenceQueue.NULL;\nnnext = this.
+
+@enduml

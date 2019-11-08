@@ -1,0 +1,34 @@
+@startuml
+
+object obj01 {
+}
+
+object referenceQueue01 {
+    head = null;
+    queueLength = null;
+}
+
+object reference01 {
+    referent = obj01;
+    queue = referenceQueue01;
+    next = null;
+    discovered = null;
+    pending = null;
+}
+
+'after reference01.enqueue();
+object referenceQueue01 {
+    head = reference01;
+    queueLength = 1;
+}
+object reference01 {
+    referent = obj01;
+    queue = ENQUEUED;
+    next = reference01;
+    discovered = next element in a discovered reference list maintained by GC (or this if last);
+    pending = null;
+}
+
+
+
+@enduml
