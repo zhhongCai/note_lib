@@ -7,8 +7,8 @@
 
 - [AskingtheRightQuestions.xmind](./books/AskingtheRightQuestions.xmind)
 - [java-design-patterns.xmind](./books/java-design-patterns.xmind)
-- [The Garbage Collection Handbook: The Art Of Automatic Memory Management.xmind](`./books/The Garbage Collection Handbook: The Art Of Automatic Memory Management.xmind"`)
-- [Troubleshooting Guide for Java SE6 with HotSpotVM.pdf](./books/Troubleshooting Guide for Java SE6 with HotSpotVM.pdf)
+- [The Garbage Collection Handbook: The Art Of Automatic Memory Management.xmind](./books/The&#32;Garbage&#32;Collection&#32;Handbook:&#32;The&#32;Art&#32;Of&#32;Automatic&#32;Memory&#32;Management.xmind)
+- [Troubleshooting Guide for Java SE6 with HotSpotVM.pdf](./books/Troubleshooting&#32;Guide&#32;for&#32;Java&#32;SE6&#32;with&#32;HotSpotVM.pdf)
 - [UML面向对象建模与设计.xmind](./books/UML面向对象建模与设计.xmind)
 - [书单.xmind](./books/书单.xmind)
 - [微服务设计.xmind](./books/微服务设计.xmind)
@@ -27,8 +27,7 @@
 - [java.lang.reflect.xmind](./jdk/java.lang.reflect.xmind)
 - [java.util.concurrent包.xmind](./jdk/java.util.concurrent包.xmind)
 - [JDK1.8集合.xmind](./jdk/JDK1.8集合.xmind)
-- [Reference Object.xmind](./jdk/Reference Object.xmind)
-- [Reference Object.xmind](./jdk/Reference Object.xmind)
+- [Reference Object.xmind](./jdk/Reference&#32;Object.xmind)
 - [synchronized.md](./jdk/synchronized.md)
 
 ## [kubernetes](./kubernetes): kubernetes知识xmind
@@ -52,7 +51,7 @@
 - [Hessian.xmind](./others/Hessian.xmind)
 - [MapStruct.xmind](./others/MapStruct.xmind)
 - [Vue.js.xmind](./others/Vue.js.xmind)
-- [Zookeeper & Apache Curator.xmind](`./others/Zookeeper & Apache Curator.xmind`)
+- [Zookeeper & Apache Curator.xmind](./others/Zookeeper&#32;&&#32;Apache&#32;Curator.xmind)
 
 ## [rpc](./rpc): rpc相关知识xmind
 
@@ -66,8 +65,8 @@
 
 - [aop_config.md](./spring/aop_config.md)
 - [Spring.xmind](./spring/Spring.xmind)
-- [spring security.xmind](./spring/spring security.xmind)
-- [spring transaction.xmind](./spring/spring transaction.xmind)
+- [spring security.xmind](./spring/spring&#32;security.xmind)
+- [spring transaction.xmind](./spring/spring&#32;transaction.xmind)
 
 ## [tomcat](./tomcat): tomcat相关知识xmind
 
