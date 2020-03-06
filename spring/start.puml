@@ -1,0 +1,165 @@
+@startuml
+
+header  tomcat9.0.21: tomcat-embed-core: Spring-5.1.x
+
+title Spring web启动过程
+
+StandardContext -> StandardContext++: startInternal()
+StandardContext -> StandardContext++: listenerStart()
+StandardContext -> ContextLoaderListener++: listener.contextInitialized(event)
+ContextLoaderListener -> ContextLoader++: initWebApplicationContext(event.getServletContext())
+
+opt "this.context == null"
+    ContextLoader -> ContextLoader++: createWebApplicationContext(servletContext)
+    ContextLoader <-- ContextLoader--: 返回WebApplicationContext
+end opt
+
+opt "this.context instanceof ConfigurableWebApplicationContext && 未启动"
+     ContextLoader -> ContextLoader++: configureAndRefreshWebApplicationContext(cwac, servletContext)
+
+     ContextLoader -> ContextLoader++:
+     note right
+     设置id，及配置文件位置（wac.setConfigLocation(configLocationParam)）
+      initPropertySources
+     end note
+     deactivate ContextLoader
+
+     ContextLoader -> ContextLoader++: customizeContext(sc, wac):
+     note right
+     获取指定的ApplicationContextInitializer列表,
+     如果有则实例化并加入contextInitializers,
+     用每个initializer的initialize(wac)方法
+     end note
+     deactivate ContextLoader
+
+     ContextLoader -> AbstractApplicationContext++: wac.refresh(): spring启动主流程
+         AbstractApplicationContext -> AbstractApplicationContext++: prepareRefresh
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: obtainFreshBeanFactory()
+             activate AbstractApplicationContext
+             AbstractApplicationContext -> AbstractRefreshableApplicationContext++: refreshBeanFactory()
+             note left
+             已有beanFactory时：destroyBeans(),closeBeanFactory()
+             创建beanFactory
+             end note
+             AbstractRefreshableApplicationContext -> AbstractRefreshableApplicationContext++: loadBeanDefinitions(beanFactory)
+             note left
+             加载类定义（基于xml的XmlWebApplicationContext or 基于注解的AnnotationConfigWebApplicationContext）
+             见start_loadBeanDefinitions.puml
+             end note
+             AbstractRefreshableApplicationContext <-- AbstractRefreshableApplicationContext--
+             deactivate AbstractRefreshableApplicationContext
+             deactivate AbstractApplicationContext
+
+             AbstractApplicationContext -> AbstractApplicationContext++: getBeanFactory()
+             AbstractApplicationContext <-- AbstractApplicationContext--: 返回beanFactory
+         AbstractApplicationContext <-- AbstractApplicationContext--: 返回beanFactory
+
+         AbstractApplicationContext -> AbstractApplicationContext++: prepareBeanFactory(beanFactory)
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: postProcessBeanFactory(beanFactory)
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: invokeBeanFactoryPostProcessors(beanFactory)
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: registerBeanPostProcessors(beanFactory)
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: initMessageSource()
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: initApplicationEventMulticaster()
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: onRefresh()
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: registerListeners()
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: finishBeanFactoryInitialization(beanFactory)
+         note left
+          Instantiate all remaining (non-lazy-init) singletons:
+          1.初始化上下文的conversionService(如果有配置了)
+          2.如果没有，注册一个内置的StringValueResolver
+          3.初始化LoadTimeWeaverAware类型bean: getBean(weaverAwareName)
+          4.Stop using the temporary ClassLoader for type matching.
+          5.Allow for caching all bean definition metadata, not expecting further changes:
+          beanFactory.freezeConfiguration()
+          6.实例化剩下的非延迟加载的单例bean
+          beanFactory.preInstantiateSingletons();
+         end note
+
+             AbstractApplicationContext -> DefaultListableBeanFactory++: beanFactory.preInstantiateSingletons()
+             note left of DefaultListableBeanFactory
+             实例化剩下的非延迟加载的单例bean(次数属性未设置)：
+             1.Trigger initialization of all non-lazy singleton beans...
+             2.Trigger post-initialization callback for all applicable beans...
+             end note
+
+             loop beanName in this.beanDefinitionNames
+                 DefaultListableBeanFactory -> DefaultListableBeanFactory++: getMergedLocalBeanDefinition(beanName)
+                 note left
+                 Return a RootBeanDefinition for the given bean, by merging with the
+                 parent if the given bean's definition is a child bean definition.
+                 end note
+                 DefaultListableBeanFactory <-- DefaultListableBeanFactory--: 返回合并后的RootBeanDefinition: bd
+
+                 opt "如果bd非抽象且是单例且非延迟加载"
+                      opt "如果beanName是FactoryBean"
+                          DefaultListableBeanFactory -> DefaultListableBeanFactory++: getBean(FACTORY_BEAN_PREFIX + beanName)
+                          note left
+                          获取FactoryBean,其beanName带"&"前缀："&"+beanName
+                          end note
+                          DefaultListableBeanFactory <-- DefaultListableBeanFactory--: 返回factoryBean: bean
+                          opt "如果获取到的bean是FactoryBean类型且需要立即实例化"
+                              DefaultListableBeanFactory -> DefaultListableBeanFactory++: getBean(beanName),实例化beanName对应的bean(内部使用FactoryBean：bd创建)
+                              DefaultListableBeanFactory <-- DefaultListableBeanFactory--
+                          end opt
+                      else
+                          DefaultListableBeanFactory -> DefaultListableBeanFactory++: getBean(beanName)，实例化beanName
+                          DefaultListableBeanFactory -> DefaultListableBeanFactory++: doGetBean(beanName, null, null, false)，实例化beanName
+                          note left
+                          Return an instance, which may be shared or independent, of the specified bean
+
+                          See start_getbean.puml
+
+                          end note
+                          DefaultListableBeanFactory <-- DefaultListableBeanFactory--
+                          DefaultListableBeanFactory <-- DefaultListableBeanFactory--
+                      end opt
+                 end opt
+             end loop
+
+             loop beanName in this.beanDefinitionNames
+                 DefaultListableBeanFactory -> DefaultListableBeanFactory++: Object singletonInstance = getSingleton(beanName)
+                 DefaultListableBeanFactory <-- DefaultListableBeanFactory--: 返回singletonInstance
+                 opt "如果singletonInstance是SmartInitializingSingleton类型"
+                     DefaultListableBeanFactory -> DefaultListableBeanFactory++: smartSingleton.afterSingletonsInstantiated()
+                     DefaultListableBeanFactory <-- DefaultListableBeanFactory--
+                 end opt
+             end loop
+
+             AbstractApplicationContext <-- DefaultListableBeanFactory--
+         deactivate AbstractApplicationContext
+
+         AbstractApplicationContext -> AbstractApplicationContext++: finishRefresh()
+         deactivate AbstractApplicationContext
+
+     ContextLoader <-- AbstractApplicationContext--
+     deactivate ContextLoader
+
+end opt
+
+ContextLoader -> ContextLoader++: servletContext.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, this.context);
+deactivate ContextLoader
+
+ContextLoaderListener <-- ContextLoader--:
+StandardContext <-- ContextLoaderListener--:
+deactivate StandardContext
+deactivate StandardContext
+
+@enduml

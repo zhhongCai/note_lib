@@ -1,0 +1,16 @@
+@startuml
+
+InputStreamSource <|-- Resource
+Resource <|-- AbstractResource
+AbstractResource <|-- BeanDefinitionResource
+AbstractResource <|-- AbstractFileResolvingResource
+AbstractFileResolvingResource <|-- ClassPathResource
+AbstractFileResolvingResource <|-- ServletContextResource
+AbstractFileResolvingResource <|-- UrlResource
+
+
+ResourceLoader <|-- ResourcePatternResolver
+ResourcePatternResolver <|-- ApplicationContext
+
+
+@enduml

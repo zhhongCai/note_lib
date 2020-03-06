@@ -1,0 +1,181 @@
+@startuml
+
+header 加载bean定义到beanFactory Spring-5.1.x
+
+title loadBeanDefinitions过程(通过XmlBeanDefinitionReader)
+
+AbstractRefreshableApplicationContext -> XmlWebApplicationContext++: loadBeanDefinitions(beanFactory)
+
+XmlWebApplicationContext -> XmlWebApplicationContext++: new XmlBeanDefinitionReader(beanFactory)
+XmlWebApplicationContext -> AbstractBeanDefinitionReader++: super(registry)
+note left
+为bean factory创建一个AbstractBeanDefinitionReader，并设置resourceLoader和environment:
+如果传入的beanFactory实现了BeanDefinitionRegistry和ResourceLoader接口，
+    它被用作为默认的ResourceLoader(通常是实现ApplicationContext的情况)，
+    即this.resourceLoader = (ResourceLoader) this.registry;；
+否则 默认的ResourceLoader为PathMatchingResourcePatternResolver
+
+如果传入的beanFactory实现了EnvironmentCapable,
+    则this.environment = ((EnvironmentCapable) this.registry).getEnvironment();
+否则 this.environment = new StandardEnvironment();
+end note
+XmlWebApplicationContext <-- AbstractBeanDefinitionReader
+XmlWebApplicationContext -> XmlWebApplicationContext--: 返回beanDefinitionReader
+
+note left
+beanDefinitionReader.setEnvironment(getEnvironment());
+beanDefinitionReader.setResourceLoader(this);
+beanDefinitionReader.setEntityResolver(new ResourceEntityResolver(this));
+end note
+
+XmlWebApplicationContext -> XmlWebApplicationContext++: initBeanDefinitionReader(beanDefinitionReader)
+XmlWebApplicationContext <-- XmlWebApplicationContext--
+
+XmlWebApplicationContext -> XmlWebApplicationContext++: loadBeanDefinitions(beanDefinitionReader)
+
+XmlWebApplicationContext -> XmlWebApplicationContext++: getConfigLocations()
+XmlWebApplicationContext <-- XmlWebApplicationContext--: 返回configLocations
+
+loop configLocation in configLocations
+    XmlWebApplicationContext -> XmlBeanDefinitionReader++: reader.loadBeanDefinitions(configLocation)
+    XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: loadBeanDefinitions(location, null)
+    opt "resourceLoader instanceof ResourcePatternResolver"
+        XmlBeanDefinitionReader -> PathMatchingResourcePatternResolver++: ((ResourcePatternResolver) resourceLoader).getResources(location)
+        note left
+            Resolve the given location pattern into Resource objects.
+        end note
+        XmlBeanDefinitionReader <-- PathMatchingResourcePatternResolver--: 返回Resource[] resources
+        XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: loadBeanDefinitions(resources)
+        note left
+        Load bean definitions from the specified resources.
+        end note
+        XmlBeanDefinitionReader <-- ResourcePatternResolver--: count
+    else
+        XmlBeanDefinitionReader -> DefaultResourceLoader++: resourceLoader.getResource(location)
+        XmlBeanDefinitionReader <-- DefaultResourceLoader--: 返回Resource resource
+
+        XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: loadBeanDefinitions(resource)
+        XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: loadBeanDefinitions(new EncodedResource(resource))
+        XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: doLoadBeanDefinitions(inputSource, encodedResource.getResource())
+        XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: doLoadDocument(inputSource, resource)
+        note left
+         Actually load the specified document using the configured DocumentLoader
+        end note
+        XmlBeanDefinitionReader <-- XmlBeanDefinitionReader--: 返回Document doc
+        XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: registerBeanDefinitions(doc, resource)
+        note left
+        注册DOM文档中的bean definition.
+        end note
+        XmlBeanDefinitionReader -> XmlBeanDefinitionReader++: createBeanDefinitionDocumentReader()
+        XmlBeanDefinitionReader <-- XmlBeanDefinitionReader--: 返回BeanDefinitionDocumentReader documentReader
+
+        XmlBeanDefinitionReader -> DefaultBeanDefinitionDocumentReader++: documentReader.registerBeanDefinitions(doc, createReaderContext(resource))
+        note left
+        其中createReaderContext(resource):
+        new XmlReaderContext(resource, this.problemReporter, this.eventListener, t
+        his.sourceExtractor, this, getNamespaceHandlerResolver())
+        end note
+
+        DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: doRegisterBeanDefinitions(doc.getDocumentElement())
+        note left
+        Register each bean definition within the given root {@code <beans/>} element.
+
+        Any nested <beans> elements will cause recursion in this method. In
+		order to propagate and preserve <beans> default-* attributes correctly,
+		keep track of the current (parent) delegate, which may be null. Create
+		the new (child) delegate with a reference to the parent for fallback purposes,
+		then ultimately reset this.delegate back to its original (parent) reference.
+		this behavior emulates a stack of delegates without actually necessitating one.
+
+        this.delegate = createDelegate(getReaderContext(), root, parent);
+        end note
+
+        DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: preProcessXml(root)
+        DefaultBeanDefinitionDocumentReader <-- DefaultBeanDefinitionDocumentReader--
+
+        DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: parseBeanDefinitions(root, this.delegate)
+        opt "delegate.isDefaultNamespace(root)"
+            DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: parseDefaultElement(ele, delegate)
+            opt "是导入节点: IMPORT_ELEMENT"
+                DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: importBeanDefinitionResource(ele)
+                deactivate DefaultBeanDefinitionDocumentReader
+            else opt "是别名节点: ALIAS_ELEMENT"
+                DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: processAliasRegistration(ele, delegate)
+                deactivate DefaultBeanDefinitionDocumentReader
+            else opt "是bean节点: BEAN_ELEMENT"
+                DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++:processBeanDefinition(ele, delegate)
+                note left
+                1.由BeanDefinitionParserDelegate解析： BeanDefinitionHolder bdHolder = delegate.parseBeanDefinitionElement(ele)
+                2.bdHolder = delegate.decorateBeanDefinitionIfRequired(ele, bdHolder);
+                3.注册到registry(beanFactory)中BeanDefinitionReaderUtils.registerBeanDefinition(bdHolder, getReaderContext().getRegistry())
+                4.Send registration event, getReaderContext().fireComponentRegistered(new BeanComponentDefinition(bdHolder))
+                end note
+
+                deactivate DefaultBeanDefinitionDocumentReader
+            else opt "是嵌套bean节点: NESTED_BEANS_ELEMENT,递归调用doRegisterBeanDefinitions"
+                DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: doRegisterBeanDefinitions(ele)
+                deactivate DefaultBeanDefinitionDocumentReader
+            end opt
+
+            DefaultBeanDefinitionDocumentReader <-- DefaultBeanDefinitionDocumentReader--
+        else
+            DefaultBeanDefinitionDocumentReader -> BeanDefinitionParserDelegate++: parseCustomElement(root)
+                BeanDefinitionParserDelegate -> BeanDefinitionParserDelegate++: parseCustomElement(ele, null)
+                note left
+                1. String namespaceUri = getNamespaceURI(ele);
+                2. NamespaceHandler handler = this.readerContext.getNamespaceHandlerResolver().resolve(namespaceUri);
+                end note
+                BeanDefinitionParserDelegate -> NamespaceHandlerSupport++:  handler.parse(ele, new ParserContext(this.readerContext, this, containingBd))
+                note left
+                1. BeanDefinitionParser parser = findParserForElement(element, parserContext);
+                2. if parser is not null, parser.parse(element, parserContext)
+                如果配置了aop-config,对应的解析类为ConfigBeanDefinitionParser, 此处会注册AspectJAwareAdvisorAutoProxyCreator类定义,
+                并且在refresh方法中registerBeanPostProcessors(beanFactory), 注册为beanPostProcessor,
+                具体由PostProcessorRegistrationDelegate.registerBeanPostProcessors(beanFactory, this)完成
+
+                at org.springframework.aop.config.AopConfigUtils.registerOrEscalateApcAsRequired(AopConfigUtils.java:140)
+                at org.springframework.aop.config.AopConfigUtils.registerAspectJAutoProxyCreatorIfNecessary(AopConfigUtils.java:88)
+                at org.springframework.aop.config.AopNamespaceUtils.registerAspectJAutoProxyCreatorIfNecessary(AopNamespaceUtils.java:68)
+                at org.springframework.aop.config.ConfigBeanDefinitionParser.configureAutoProxyCreator(ConfigBeanDefinitionParser.java:133)
+                at org.springframework.aop.config.ConfigBeanDefinitionParser.parse(ConfigBeanDefinitionParser.java:106)
+                at org.springframework.beans.factory.xml.NamespaceHandlerSupport.parse(NamespaceHandlerSupport.java:74)
+
+                end note
+                BeanDefinitionParserDelegate <-- NamespaceHandlerSupport--
+
+                BeanDefinitionParserDelegate <-- BeanDefinitionParserDelegate--: 返回beanDefinition
+            DefaultBeanDefinitionDocumentReader <-- BeanDefinitionParserDelegate--
+        end opt
+        DefaultBeanDefinitionDocumentReader <-- DefaultBeanDefinitionDocumentReader--
+
+        DefaultBeanDefinitionDocumentReader -> DefaultBeanDefinitionDocumentReader++: postProcessXml(root)
+        DefaultBeanDefinitionDocumentReader <-- DefaultBeanDefinitionDocumentReader--
+
+
+        DefaultBeanDefinitionDocumentReader <-- DefaultBeanDefinitionDocumentReader--
+        deactivate DefaultBeanDefinitionDocumentReader
+
+        XmlBeanDefinitionReader <-- XmlBeanDefinitionReader--
+        XmlBeanDefinitionReader <-- XmlBeanDefinitionReader--: 返回count
+        XmlBeanDefinitionReader <-- XmlBeanDefinitionReader--
+        XmlBeanDefinitionReader <-- XmlBeanDefinitionReader--
+        XmlBeanDefinitionReader <-- ResourcePatternResolver--: count
+    end opt
+    XmlWebApplicationContext <-- XmlBeanDefinitionReade--
+    XmlWebApplicationContext <-- XmlBeanDefinitionReade--
+end loop
+
+XmlWebApplicationContext <-- XmlWebApplicationContext--
+
+deactivate XmlWebApplicationContext
+deactivate AbstractRefreshableApplicationContext
+
+
+newpage 注解/包扫描 loadBeanDefinitions过程(通过AnnotatedBeanDefinitionReader,ClassPathBeanDefinitionScanner)
+
+
+AbstractRefreshableApplicationContext -> AnnotationConfigWebApplicationContext++: loadBeanDefinitions(beanFactory)
+deactivate AnnotationConfigWebApplicationContext
+deactivate AbstractRefreshableApplicationContext
+
+@enduml

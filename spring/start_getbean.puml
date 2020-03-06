@@ -1,0 +1,93 @@
+@startuml
+
+header  Spring-5.1.x
+
+title getBean过程
+
+note top
+    aop创建代理类：
+    at org.springframework.aop.framework.JdkDynamicAopProxy.getProxy(JdkDynamicAopProxy.java:123)
+    at org.springframework.aop.framework.ProxyFactory.getProxy(ProxyFactory.java:110)
+    at org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator.createProxy(AbstractAutoProxyCreator.java:471)
+    at org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator.wrapIfNecessary(AbstractAutoProxyCreator.java:350)
+    at org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator.postProcessAfterInitialization(AbstractAutoProxyCreator.java:299)
+    at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.applyBeanPostProcessorsAfterInitialization(AbstractAutowireCapableBeanFactory.java:429)
+    at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782)
+    at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:593)
+    at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:515)
+    at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:320)
+    at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:222)
+    at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:318)
+    at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:199)
+    at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:845)
+    at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:877)
+    at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:549)
+end note
+
+DefaultListableBeanFactory -> DefaultListableBeanFactory++: getBean(beanName)，实例化beanName
+
+    DefaultListableBeanFactory -> AbstractBeanFactory++: doGetBean(name, null, null, false)，实例化beanName
+    note left
+    Return an instance, which may be shared or independent, of the specified bean
+    1.String beanName = transformedBeanName(name);去掉factoryBean的beanName前缀(如果是factoryBean的beanName)
+    2.Eagerly check singleton cache for manually registered singletons.
+    3.如果缓存中已有 bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
+    4.缓存中没有则创建
+        4.1 类定义是否在父parentBeanFactory中,存在则由parentBeanFactory.getBean(...)
+        4.2 getMergedLocalBeanDefinition(beanName);
+        4.3 检查依赖,注册依赖,并获取依赖bean: getBean(dep)
+        4.4 创建bean实例:
+            4.4.1 单例：
+                getSingleton(beanName,singletonFactory)
+                sharedInstance = createBean(beanName, mbd, args)
+                sharedInstance可能是objectFacotry,调用 getObjectForBeanInstance(sharedInstance, name, beanName, mbd)
+                获取bean对象
+            4.4.2 prototype:
+                prototypeInstance = createBean(beanName, mbd, args)
+                bean = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
+            4.4.2 其他scope:
+                scope.get(beanName, objectFactory);
+    5.检查获取的bean的类型是否和需要的类型一致，不一致需要转换
+       T convertedBean = getTypeConverter().convertIfNecessary(bean, requiredType);
+       返回转换后的convertedBean
+    end note
+
+    AbstractBeanFactory -> AbstractAutowireCapableBeanFactory++: createBean(beanName, mbd, args)
+    note left
+    创建bean实例,填充bean实例,调用 post-processors
+    end note
+    AbstractAutowireCapableBeanFactory -> AbstractBeanFactory++: resolveBeanClass(mbd, beanName)
+    note left
+    Make sure bean class is actually resolved at this point, and
+    clone the bean definition in case of a dynamically resolved Class
+     which cannot be stored in the shared merged bean definition.
+    end note
+    AbstractAutowireCapableBeanFactory <-- AbstractBeanFactory--: 返回Class<?> resolvedClass
+    AbstractAutowireCapableBeanFactory -> RootBeanDefinition++: mbdToUse.prepareMethodOverrides();
+    AbstractAutowireCapableBeanFactory <-- RootBeanDefinition--
+
+    AbstractAutowireCapableBeanFactory -> AbstractAutowireCapableBeanFactory++: resolveBeforeInstantiation(beanName, mbdToUse);
+    note left
+    Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+    end note
+    AbstractAutowireCapableBeanFactory <-- AbstractAutowireCapableBeanFactory--: 返回bean
+
+    AbstractAutowireCapableBeanFactory -> AbstractAutowireCapableBeanFactory++: doCreateBean(beanName, mbdToUse, args)
+    AbstractAutowireCapableBeanFactory -> AbstractAutowireCapableBeanFactory++: createBeanInstance(beanName, mbd, args)
+    note left
+    为特定bean创建实例,使用合适的策略: factory method,constructor autowiring or simple instantiation
+    end note
+    AbstractAutowireCapableBeanFactory <-- AbstractAutowireCapableBeanFactory--: 返回instanceWrapper
+    AbstractAutowireCapableBeanFactory <-- AbstractAutowireCapableBeanFactory--: 返回beanInstance
+
+    AbstractBeanFactory <-- AbstractAutowireCapableBeanFactory--: 返回sharedInstance
+
+    AbstractBeanFactory -> AbstractBeanFactory++: getObjectForBeanInstance(sharedInstance, name, beanName, mbd)
+    AbstractBeanFactory <-- AbstractBeanFactory--: 返回bean
+
+
+
+    DefaultListableBeanFactory <-- AbstractBeanFactory--: 返回bean
+deactivate DefaultListableBeanFactory
+
+@enduml
