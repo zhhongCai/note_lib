@@ -1,0 +1,79 @@
+@startuml
+
+header 加载bean定义到beanFactory Spring-5.1.x
+
+title 注解/包扫描 loadBeanDefinitions过程(通过AnnotatedBeanDefinitionReader,ClassPathBeanDefinitionScanner)
+
+activate AbstractRefreshableApplicationContext
+AbstractRefreshableApplicationContext -> AnnotationConfigWebApplicationContext++: loadBeanDefinitions(beanFactory)
+note right
+为register(Class...)和scan(String...)方法指定的类/包,
+setConfigLocation(String),setConfigLocations(String[])
+指定的资源注册bean定义,
+启用默认的注解配置的post processors
+比如@Autowired,@Required
+end note
+
+AbstractRefreshableApplicationContext -> AnnotationConfigWebApplicationContext++: getAnnotatedBeanDefinitionReader(beanFactory)
+AbstractRefreshableApplicationContext <-- AnnotationConfigWebApplicationContext--: 返回AnnotatedBeanDefinitionReader reader
+AbstractRefreshableApplicationContext -> AnnotationConfigWebApplicationContext++: getClassPathBeanDefinitionScanner(beanFactory);
+AbstractRefreshableApplicationContext <-- AnnotationConfigWebApplicationContext--: ClassPathBeanDefinitionScanner scanner
+AbstractRefreshableApplicationContext -> AnnotationConfigWebApplicationContext++: getBeanNameGenerator();
+note left
+获取bean名称生成器,如果有设置到reader,scanner中,默认AnnotationBeanNameGenerator,
+end note
+AbstractRefreshableApplicationContext <-- AnnotationConfigWebApplicationContext--: BeanNameGenerator beanNameGenerator
+AbstractRefreshableApplicationContext -> AnnotationConfigWebApplicationContext++: getScopeMetadataResolver();
+note left
+获取beanDefinition的scope解析器,如果有设置到reader,scanner中
+end note
+AbstractRefreshableApplicationContext <-- AnnotationConfigWebApplicationContext--: ScopeMetadataResolver scopeMetadataResolver
+
+opt "!this.annotatedClasses.isEmpty()"
+AbstractRefreshableApplicationContext -> AnnotatedBeanDefinitionReader++: reader.register(ClassUtils.toClassArray(this.annotatedClasses));
+loop annotatedClass in annotatedClasses
+AnnotatedBeanDefinitionReader -> AnnotatedBeanDefinitionReader++: registerBean(annotatedClass);
+AnnotatedBeanDefinitionReader -> AnnotatedBeanDefinitionReader++: doRegisterBean(annotatedClass, null, null, null)
+note left
+Register a bean from the given bean class, deriving its metadata from
+class-declared annotations.
+end note
+AnnotatedBeanDefinitionReader <-- AnnotatedBeanDefinitionReader--
+AnnotatedBeanDefinitionReader <-- AnnotatedBeanDefinitionReader--
+end loop
+AbstractRefreshableApplicationContext <-- AnnotatedBeanDefinitionReader--
+end opt
+
+opt "!this.basePackages.isEmpty()"
+AbstractRefreshableApplicationContext -> ClassPathBeanDefinitionScanner++: scanner.scan(StringUtils.toStringArray(this.basePackages));
+ClassPathBeanDefinitionScanner -> ClassPathBeanDefinitionScanner++: doScan(basePackages);
+note left
+Perform a scan within the specified base packages,
+returning the registered bean definitions.
+end note
+ClassPathBeanDefinitionScanner <-- ClassPathBeanDefinitionScanner--
+AbstractRefreshableApplicationContext <-- ClassPathBeanDefinitionScanner--
+end opt
+
+opt "configLocations != null"
+loop configLocation in configLocations
+     AbstractRefreshableApplicationContext -> AnnotatedBeanDefinitionReader++: reader.register(ClassUtils.toClassArray(this.annotatedClasses));
+     ref over AnnotatedBeanDefinitionReader
+        同reader.register过程
+     end
+     AbstractRefreshableApplicationContext <-- AnnotatedBeanDefinitionReader--
+    opt "使用reader注册失败,尝试包扫描"
+        AbstractRefreshableApplicationContext -> ClassPathBeanDefinitionScanner++: scanner.scan(StringUtils.toStringArray(this.basePackages));
+        ref over ClassPathBeanDefinitionScanner
+            同scanner.scan过程
+        end
+        AbstractRefreshableApplicationContext <-- ClassPathBeanDefinitionScanner--
+    end opt
+end loop
+end opt
+
+
+deactivate AnnotationConfigWebApplicationContext
+deactivate AbstractRefreshableApplicationContext
+
+@enduml

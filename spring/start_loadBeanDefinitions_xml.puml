@@ -130,16 +130,8 @@ loop configLocation in configLocations
                 1. BeanDefinitionParser parser = findParserForElement(element, parserContext);
                 2. if parser is not null, parser.parse(element, parserContext)
                 如果配置了aop-config,对应的解析类为ConfigBeanDefinitionParser, 此处会注册AspectJAwareAdvisorAutoProxyCreator类定义,
-                并且在refresh方法中registerBeanPostProcessors(beanFactory), 注册为beanPostProcessor,
-                具体由PostProcessorRegistrationDelegate.registerBeanPostProcessors(beanFactory, this)完成
-
-                at org.springframework.aop.config.AopConfigUtils.registerOrEscalateApcAsRequired(AopConfigUtils.java:140)
-                at org.springframework.aop.config.AopConfigUtils.registerAspectJAutoProxyCreatorIfNecessary(AopConfigUtils.java:88)
-                at org.springframework.aop.config.AopNamespaceUtils.registerAspectJAutoProxyCreatorIfNecessary(AopNamespaceUtils.java:68)
-                at org.springframework.aop.config.ConfigBeanDefinitionParser.configureAutoProxyCreator(ConfigBeanDefinitionParser.java:133)
-                at org.springframework.aop.config.ConfigBeanDefinitionParser.parse(ConfigBeanDefinitionParser.java:106)
-                at org.springframework.beans.factory.xml.NamespaceHandlerSupport.parse(NamespaceHandlerSupport.java:74)
-
+                并且在refresh方法中registerBeanPostProcessors(beanFactory)(已注册为beanDefinition的PostProcessor
+                都会被自动注册), 注册为beanPostProcessor, 具体由PostProcessorRegistrationDelegate.registerBeanPostProcessors(beanFactory, this)完成
                 end note
                 BeanDefinitionParserDelegate <-- NamespaceHandlerSupport--
 
@@ -161,21 +153,13 @@ loop configLocation in configLocations
         XmlBeanDefinitionReader <-- XmlBeanDefinitionReader--
         XmlBeanDefinitionReader <-- ResourcePatternResolver--: count
     end opt
-    XmlWebApplicationContext <-- XmlBeanDefinitionReade--
-    XmlWebApplicationContext <-- XmlBeanDefinitionReade--
+    XmlWebApplicationContext <-- XmlBeanDefinitionReader--
+    XmlWebApplicationContext <-- XmlBeanDefinitionReader--
 end loop
 
 XmlWebApplicationContext <-- XmlWebApplicationContext--
 
 deactivate XmlWebApplicationContext
-deactivate AbstractRefreshableApplicationContext
-
-
-newpage 注解/包扫描 loadBeanDefinitions过程(通过AnnotatedBeanDefinitionReader,ClassPathBeanDefinitionScanner)
-
-
-AbstractRefreshableApplicationContext -> AnnotationConfigWebApplicationContext++: loadBeanDefinitions(beanFactory)
-deactivate AnnotationConfigWebApplicationContext
 deactivate AbstractRefreshableApplicationContext
 
 @enduml

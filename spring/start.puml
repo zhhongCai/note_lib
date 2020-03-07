@@ -33,7 +33,12 @@ opt "this.context instanceof ConfigurableWebApplicationContext && 未启动"
      deactivate ContextLoader
 
      ContextLoader -> AbstractApplicationContext++: wac.refresh(): spring启动主流程
-         AbstractApplicationContext -> AbstractApplicationContext++: prepareRefresh
+         AbstractApplicationContext -> AbstractApplicationContext++: prepareRefresh()
+         note left
+         上下文刷新准备工作：
+         设置启动时间,设置启动/关闭标志;
+         property sources的初始化: initPropertySources();
+         end left
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: obtainFreshBeanFactory()
@@ -46,7 +51,9 @@ opt "this.context instanceof ConfigurableWebApplicationContext && 未启动"
              AbstractRefreshableApplicationContext -> AbstractRefreshableApplicationContext++: loadBeanDefinitions(beanFactory)
              note left
              加载类定义（基于xml的XmlWebApplicationContext or 基于注解的AnnotationConfigWebApplicationContext）
-             见start_loadBeanDefinitions.puml
+
+             见start_loadBeanDefinitions*.puml
+
              end note
              AbstractRefreshableApplicationContext <-- AbstractRefreshableApplicationContext--
              deactivate AbstractRefreshableApplicationContext
@@ -57,27 +64,90 @@ opt "this.context instanceof ConfigurableWebApplicationContext && 未启动"
          AbstractApplicationContext <-- AbstractApplicationContext--: 返回beanFactory
 
          AbstractApplicationContext -> AbstractApplicationContext++: prepareBeanFactory(beanFactory)
+         note left
+         设置factory的标准上下文属性:
+         设置类加载器(the context's class loader): 默认ClassUtils.getDefaultClassLoader()
+         设置beanExpressionResolver: StandardBeanExpressionResolver
+         设置PropertyEditorRegistrar: ResourceEditorRegistrar
+
+         添加后置处理器: ApplicationContextAwareProcessor
+         忽略依赖接口的自动装配: EnvironmentAware,EmbeddedValueResolverAware,
+             ResourceLoaderAware,ApplicationEventPublisherAware,
+             MessageSourceAware,ApplicationContextAware
+         注册特定依赖类型,使用自动装配的值：BeanFactory: beanFactory,ResourceLoader: this,
+         ApplicationEventPublisher: this, ApplicationContext: this
+
+         添加后置处理器: ApplicationListenerDetector,如果工厂中有LOAD_TIME_WEAVER_BEAN_NAME bean,
+            LoadTimeWeaverAwareProcessor,ContextTypeMatchClassLoader
+
+         Register default environment beans
+         end note
          deactivate AbstractApplicationContext
 
-         AbstractApplicationContext -> AbstractApplicationContext++: postProcessBeanFactory(beanFactory)
-         deactivate AbstractApplicationContext
+         AbstractApplicationContext -> AbstractRefreshableWebApplicationContext++: postProcessBeanFactory(beanFactory)
+         note left
+         添加后置处理器：ServletContextAwareProcessor
+         忽略依赖接口的自动装配: ServletContextAware,ServletConfigAware
+         注册scope:  RequestScope,SessionScope,(application)ServletContextScope
+         注册特定依赖类型,使用自动装配的值: ServletRequest: RequestObjectFactory
+             ServletResponse: ResponseObjectFactory, HttpSession: SessionObjectFactory
+             WebRequest: WebRequestObjectFactory
+         注册web特有的environment beans: contextParameters, contextAttributes
+         end note
+         deactivate AbstractRefreshableWebApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: invokeBeanFactoryPostProcessors(beanFactory)
+         note left
+         初始化并实例化并调用已注册的BeanFactoryPostProcessor:
+         PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors())
+
+         end note
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: registerBeanPostProcessors(beanFactory)
+         note left
+         实例化并注册所有BeanPostProcessor类型的bean:
+         PostProcessorRegistrationDelegate.registerBeanPostProcessors(beanFactory, this)
+         1.获取所有BeanPostProcessor类型的bean名称
+         2.区别不同的beanPostProcessor: 内部的(beanDefinition中role=RootBeanDefinition.ROLE_INFRASTRUCTURE)，
+           实现PriorityOrdered的，实现Ordered,其他类型的,分别实例化,排序并注册到beanFactory
+         3.添加ApplicationListenerDetector beanPostProcessor: 检测实现了ApplicationListener接口的bean,
+           如果是单例，添加到applicationContext的applicationEventMulticaster(为空时，applicationListeners)中
+         end note
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: initMessageSource()
+         note left
+         初始化MessageSource,如果当前上下文没有则使用父上下文的:
+         1.如果beanFactory中有bean名称为MESSAGE_SOURCE_BEAN_NAME的bean,实例化它
+           否则创建 DelegatingMessageSource,并注册到beanFactory
+         end note
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: initApplicationEventMulticaster()
+         note left
+         初始化ApplicationEventMulticaster
+         如果beanFactory中有名称为APPLICATION_EVENT_MULTICASTER_BEAN_NAME的bean,实例化它:
+         beanFactory.getBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, ApplicationEventMulticaster.class),
+         否则，创建SimpleApplicationEventMulticaster,并注册到beanFactory
+         end note
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: onRefresh()
+         note left
+         Initialize other special beans in specific context subclasses：比如
+         AbstractRefreshableWebApplicationContext中设置themeSource：
+         如果上下文中有名称为THEME_SOURCE_BEAN_NAME的bean,实例化它,
+         否则创建 DelegatingThemeSource(父上下文非ThemeSource类型时，ResourceBundleThemeSource)
+         end note
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: registerListeners()
+         note left
+         Check for listener beans and register them:
+            Register statically specified listeners first.
+            Publish early application events now that we finally have a multicaster...
+         end note
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: finishBeanFactoryInitialization(beanFactory)
@@ -147,6 +217,16 @@ opt "this.context instanceof ConfigurableWebApplicationContext && 未启动"
          deactivate AbstractApplicationContext
 
          AbstractApplicationContext -> AbstractApplicationContext++: finishRefresh()
+         note left
+         完成了上下文的刷新过程,调用LifecycleProcessor的onRefresh方法，发布ContextRefreshedEvent事件:
+         1.Clear context-level resource caches (such as ASM metadata from scanning): clearResourceCaches()
+         2.Initialize lifecycle processor for this context: initLifecycleProcessor()
+           如果beanFactory中有名称为LIFECYCLE_PROCESSOR_BEAN_NAME的bean,实例化它:
+           beanFactory.getBean(LIFECYCLE_PROCESSOR_BEAN_NAME, LifecycleProcessor.class),
+           否则，创建DefaultLifecycleProcessor,并注册到beanFactory
+         3.Propagate refresh to lifecycle processor first: getLifecycleProcessor().onRefresh();
+         4.Publish the final event: publishEvent(new ContextRefreshedEvent(this))
+         end note
          deactivate AbstractApplicationContext
 
      ContextLoader <-- AbstractApplicationContext--
