@@ -1,16 +1,21 @@
 @startuml
 
-InputStreamSource <|-- Resource
-Resource <|-- AbstractResource
-AbstractResource <|-- BeanDefinitionResource
-AbstractResource <|-- AbstractFileResolvingResource
-AbstractFileResolvingResource <|-- ClassPathResource
-AbstractFileResolvingResource <|-- ServletContextResource
-AbstractFileResolvingResource <|-- UrlResource
+interface Resource extends InputStreamSource
+interface WritableResource extends Resource
+interface ContextResource extends Resource
 
+abstract class AbstractResource implements Resource
+abstract class AbstractFileResolvingResource extends AbstractResource
 
-ResourceLoader <|-- ResourcePatternResolver
-ResourcePatternResolver <|-- ApplicationContext
+class BeanDefinitionResource extends AbstractResource
+class FileUrlResource extends UrlResource implements WritableResource
+class FileSystemResource extends AbstractResource implements WritableResource
+class ClassPathResource extends AbstractFileResolvingResource
+class UrlResource extends AbstractFileResolvingResource
+class ByteArrayResource extends AbstractResource
+class InputStreamResource extends AbstractResource
+
+class ServletContextResource extends AbstractFileResolvingResource implements ContextResource
 
 
 @enduml

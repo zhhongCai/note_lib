@@ -1,0 +1,25 @@
+@startuml
+
+interface Environment extends PropertyResolver
+note top of Environment
+表示当前程序运行的环境,包含程序环境的两个关键方面: profiles 和 properties
+与properties相关的访问由父接口PropertyResolver提供
+
+一个profile是bean definitions的逻辑分组的命名,只有当给定的profile被
+启用时对应的bean definitions才会被注册到容器中.Beans可以指定一个profile
+通过xml配置(spring-beans 3.1 schema)或注解(@Profile).
+Environment决定关联的profiles哪些是当前启用的,哪些是默认启用的
+
+properties来源于: 属性文件,JVM系统属性,系统环境变量,JNDI,servlet上下文参数,
+ad-hoc Properties objects,Maps等
+Environment提供方便的属性配置及解析接口
+
+end note
+
+interface ConfigurablePropertyResolver extends PropertyResolver
+interface ConfigurableEnvironment extends Environment, ConfigurablePropertyResolver
+abstract class AbstractEnvironment implements ConfigurableEnvironment
+class StandardEnvironment extends AbstractEnvironment
+class StandardServletEnvironment extends StandardEnvironment implements ConfigurableWebEnvironment
+
+@enduml

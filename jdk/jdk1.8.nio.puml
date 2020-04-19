@@ -1,0 +1,147 @@
+@startuml
+
+header jdk1.8.0_201
+
+title java.nio\n\n
+
+interface Channel extends Closeable {
+    + boolean isOpen()
+    + void close() throws IOException
+}
+
+abstract class Pipe {
+    + abstract SourceChannel source()
+    + abstract SinkChannel sink()
+    + static Pipe open() throws IOException
+}
+
+abstract class SourceChannel extends AbstractSelectableChannel implements ReadableByteChannel, ScatteringByteChannel {
+    + final int validOps(): SelectionKey.OP_READ
+}
+
+abstract class SinkChannel extends AbstractSelectableChannel implements WritableByteChannel, GatheringByteChannel {
+    + final int validOps(): SelectionKey.OP_WRITE
+}
+
+Pipe *.. "1" SourceChannel: contains
+Pipe *.. "1" SinkChannel: contains
+
+
+abstract class Selector implements Closeable {
+    + static Selector open() throws IOException
+    + abstract boolean isOpen()
+    + abstract SelectorProvider provider()
+    + abstract Set<SelectionKey> keys()
+    + abstract Set<SelectionKey> selectedKeys()
+    + abstract int selectNow() throws IOException
+    + abstract int select(long timeout) throws IOException
+    + abstract int select() throws IOException
+    + abstract Selector wakeup()
+    + abstract void close() throws IOException
+}
+
+abstract class SelectionKey {
+    + abstract SelectableChannel channel()
+}
+
+note top of Selector
+A multiplexor of SelectableChannel objects.
+通过调用Selector.open()来创建一个Selector(使用系统默认的SelectorProvider)
+或者通过自定义的SelectorProvider.openSelector()来创建.调用closed()前将保存open
+
+SelectionKey表示一个Selectable Channel在Selector的注册信息.Selector维护三个
+selection keys的集合：
+    key set: 包含keys表示这个selector上已注册的channel的注册信息,通过keys()
+    方法返回
+    selected-key set: 一个keys的集合,在选择操作期间,这些keys对应的channel被检测
+    到至少有一个感兴趣的操作准备就绪了,selectedKeys()方法返回这些keys。是key
+    set的子集
+    cancelled-key set: 已经被取消的keys,但它的channel还没注销.不可用直接获取
+    ,是key set的子集
+
+    刚创建的selector,三个集合都为空
+
+key在channel调用SelectableChannel.register(Selector, int)注册到Selector时
+被加入到key set.Cancelled keys在选择操作期间从key set中移除.key set本身不可
+直接修改
+
+key在其被取消时加入到cancelled-key集合,通过关闭它关联的channel或调用SelectionKey.cancel
+方法取消.一个key的取消会引起其关联的channel从Selector上注销在下一次选择操作的时候,
+也就是在这时候key将被从所有selector的key set中移除
+
+在选择操作时,将key添加到selected-key集合中.一个key可以直接从selected-key集合中
+移除,通过调用Set.remove方法,或集合对应的Iterator.remove方法。keys没有其他办法
+从selected-key集合中移除，不会作为选择操作的副作用而被移除.keys不可用直接添加到
+selected-key集合中
+
+在选择操作期间,key可能被添加到selected-ky集合或从selected-ky集合中移除,也有可能
+从cancelled-key集合移除.选择是通过select(),select(long),selectNow()方法来操
+作,包括三个步骤:
+   1.cancelled-key集合中的每个key从所有包含它的key集合中移除,它对于的channel
+   被注销.这个步骤使得cancelled-key集合为空
+
+   2.查询底层操作系统对剩余channel在选择开始时key上注册的感兴趣的标志位就绪的更新.
+   对于至少有一个操作准备就绪的channel,下列两个动作被执行:
+   2.1 如果channel的key还不在selected-key集合中将被添加到集合,它的就绪操作集合
+   被修改以便于标识这些操作对于channel已经准备就绪.其他先前记录在就绪集合的就绪信息
+   就丢弃了.
+   2.2 如果channel的key已经在selected-key集合中,它的就绪操作集合也被修改了以便于
+   标识这些操作对于channel已经准备就绪.先前记录的就绪信息任然保留.也就是说,底层
+   系统返回的就绪集合与单前就绪集合按位分开
+
+   如果步骤2开始时，所有key集合的key的兴趣集合都为空,那selected-key集合和操作就绪
+   集合就不会被更新
+
+   3.如果有key在步骤2处理时被添加到cancelled-key集合,那它将按步骤1处理
+
+三个select方法的唯一不同是是否阻塞直到有channel就绪，如果阻塞阻塞多久.
+
+Selector本身是支持多线程的,但它的key集合不支持
+
+选择操作在selector上,key set集合上和selected-key集合上是同步的,按那样的顺序.
+在coancelled-key集合上步骤1和3期间也是同步的.
+
+在执行选择期间修改key的兴趣集不会影响当前轮的选择操作,在下一轮选择操作时可见.
+
+keys可能被取消,channel可以在任何时候关闭.key在一个或多个selector的key集合中
+出现不表示这个key是合法的或channel是打开的.应用程序必须小心地同步并检查这些情况
+应为有可能其他线程取消了key或关闭了channel.
+
+一个阻塞在select() or select(long)方法上的线程可能被其他线程以下列三种方式之一
+中断：
+    1. 通过调用Selector的wakeup()方法
+    2. 通过调用Selector的close()方法
+    2. 通过调用被阻塞线程的interrupt()方法,这种情况下,线程的中断标志位被设置
+    且Selector的wakeup()方法会被调用
+
+
+close方法在selector上,所有三个key集合上同步,与选择操作时相同的顺序
+
+
+end note
+
+note top of SelectionKey
+表示一个SelectableChannel注册到一个Selector的标记
+
+selectionKey在channel注册到selector上时被创建.一个key是合法直到它被取消通过
+调用它的cancel方法,或关闭它关联的channel,或关闭它关联的selector.取消一个key
+不会立即从它的selector中删除,而是添加到selector的cancelled-key集合中在下一轮
+选择时移除.key是否合法通过调用isValid()方法来检测
+
+一个selectionKey包含两个操作集合,已整数值表示.整数的每一位表示key对应channel
+支持的可选择的操作类别
+
+interest set: 决定哪个操作将被检测是否就绪在下一次selector的select方法被调用时
+在创建selectionKey时初始化这个集合,可以通过调用interestOps(int)方法修改
+
+ready set: 标识selector检测到key对应的channel准备就绪的操作.初始为0,在selector
+的选择期间被修改,不可以直接修改
+
+
+
+
+end note
+
+Selector *.. "n" SelectionKey
+
+@enduml
