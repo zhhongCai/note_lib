@@ -1,19 +1,7 @@
-
-# Maven
+.DS_store
+.idea
 target/
-
-
-# Eclipse files
-.classpath
-.project
-.settings
-/workspace/
-
-# IntelliJ Idea files
 *.iml
-*.ipr
-*.iws
-/.idea
-
-# Mac
-.DS_Store
+/.settings/
+/.classpath
+/.project
