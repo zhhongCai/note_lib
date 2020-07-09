@@ -5,14 +5,10 @@
 # 目录结构
 ## [books](./books): 读书笔记
 
-- [AskingtheRightQuestions.xmind](./books/AskingtheRightQuestions.xmind)
-- [java-design-patterns.xmind](./books/java-design-patterns.xmind)
-- [The Garbage Collection Handbook: The Art Of Automatic Memory Management.xmind](./books/The&#32;Garbage&#32;Collection&#32;Handbook:&#32;The&#32;Art&#32;Of&#32;Automatic&#32;Memory&#32;Management.xmind)
+
 - [Troubleshooting Guide for Java SE6 with HotSpotVM.pdf](./books/Troubleshooting&#32;Guide&#32;for&#32;Java&#32;SE6&#32;with&#32;HotSpotVM.pdf)
-- [UML面向对象建模与设计.xmind](./books/UML面向对象建模与设计.xmind)
 - [书单.xmind](./books/书单.xmind)
 - [微服务设计.xmind](./books/微服务设计.xmind)
-- [面向模式的软件体系结构.xmind](./books/面向模式的软件体系结构.xmind)
 - [TCP-IP详解](./books/TCP-IP详解.xmind)
 - [UNIX环境高级编程](./books/UNIX环境高级编程.xmind)<[附书本源码-MACOS环境](https://github.com/zhhongCai/c_cplusplus/tree/master/apue),[官方书本源码](https://github.com/brandongooch/apue.3e.git)>
 ## [docker](./docker): docker知识
@@ -54,8 +50,6 @@
 - [Vue.js.xmind](./others/Vue.js.xmind)
 - [Zookeeper & Apache Curator.xmind](./others/Zookeeper&#32;&&#32;Apache&#32;Curator.xmind)
 
-
-## [security](./security): security相关知识
 
 - [apache-shiro.xmind](./security/apache-shiro.xmind)
 
